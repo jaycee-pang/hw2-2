@@ -7,6 +7,8 @@
 #include <set>
 #include <algorithm>
 
+
+
 struct Bin {
     int rank;
     int index;
@@ -215,14 +217,6 @@ void init_simulation(particle_t* parts, int num_parts, double size, int rank, in
 
 void simulate_one_step(particle_t* parts, int num_parts, double size, int rank, int num_procs) {
     // Write this function
-
-    // For each grid cell object calculate forces between all particles
-        // For particles within current grid cell
-            // Intercel force 
-                // Apply force
-            // Intracel force
-                // For neighbor particle
-                    // Apply force
     
     // Compute foces on each particle in each bin
     for (Bin* target_bin: own_rank_bins) {
@@ -244,7 +238,7 @@ void simulate_one_step(particle_t* parts, int num_parts, double size, int rank, 
         }
     }
 
-    // Save particles to send (by p.ID), for each neighbor rank
+    // Save particles to send (by particle ID), for each neighbor rank
     std::unordered_set<u_int64_t> send_particle_ids[num_procs];
 
     // For each bin
@@ -335,7 +329,7 @@ void simulate_one_step(particle_t* parts, int num_parts, double size, int rank, 
         }
     }
 
-    // Use all_to_all, getting the amount of particles to receive from each rank
+    // Get the amount of particles to receive from each rank, to each rank
     MPI_Alltoall(send_particle_counts, 1, MPI_INT, receive_particle_counts, 1, MPI_INT, MPI_COMM_WORLD);
 
     // Prepare send and receive buffers
@@ -371,6 +365,7 @@ void simulate_one_step(particle_t* parts, int num_parts, double size, int rank, 
         }
     }
 
+    // Because send and receives are async,
     // Wait for all of the sends and receives to finish before further computation
     MPI_Status send_statuses[num_sends];
     MPI_Status receive_statuses[num_receives];
