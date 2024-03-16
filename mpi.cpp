@@ -24,7 +24,7 @@ struct Bin {
 };
 
 static int num_bins_one_side;                           // number of bins in one row/column of the sim env
-static std::vector<Bin*> grid;                          // the grid of all the bins
+static Bin** grid;                                      // the grid of all the bins
 static std::vector<Bin*> own_rank_bins;                 // the bins that belong to this rank
 static std::unordered_set<Bin*> own_rank_ghost_bins;    // the bins that are ghost bins to this rank
 static std::vector<Bin*> ghost_to_other_rank_bins;      // the bins that are ghost bins to another rank
@@ -91,7 +91,7 @@ void init_simulation(particle_t* parts, int num_parts, double size, int rank, in
     num_bins_one_side = ceil(size / cutoff);
     int num_bins = num_bins_one_side * num_bins_one_side;
 
-    grid.resize(num_bins);
+    grid = new Bin*[num_bins];
     for (int i = 0; i < num_bins; ++i) {
         grid[i] = new Bin();
     }
@@ -121,9 +121,8 @@ void init_simulation(particle_t* parts, int num_parts, double size, int rank, in
     }
 
     // Keep track of how many chunks are in each chunk row 
-    std::vector<std::vector<int>> chunk_col_dims;
-    chunk_col_dims.resize(chunk_rows);
-    for (int i = 0; i < chunk_col_dims.size(); i++) {
+    std::vector<int> chunk_col_dims[chunk_rows];
+    for (int i = 0; i < chunk_rows; i++) {
         chunk_col_dims[i].resize(chunk_cols[i]);
         int remainder_grids_in_row = num_bins_one_side % chunk_cols[i];
         for (int j = 0; j < chunk_col_dims[i].size(); j++) {
@@ -246,8 +245,7 @@ void simulate_one_step(particle_t* parts, int num_parts, double size, int rank, 
     }
 
     // Save particles to send (by p.ID), for each neighbor rank
-    std::vector<std::unordered_set<u_int64_t>> send_particle_ids;
-    send_particle_ids.resize(num_procs);
+    std::unordered_set<u_int64_t> send_particle_ids[num_procs];
 
     // For each bin
         // For each particle
@@ -341,11 +339,10 @@ void simulate_one_step(particle_t* parts, int num_parts, double size, int rank, 
     MPI_Alltoall(send_particle_counts, 1, MPI_INT, receive_particle_counts, 1, MPI_INT, MPI_COMM_WORLD);
 
     // Prepare send and receive buffers
-    std::vector<std::vector<particle_t>> send_buffers; // indices = rank to send to
-    std::vector<std::vector<particle_t>> receive_buffers; // indices = rank to receive from
-    send_buffers.resize(num_procs);
-    receive_buffers.resize(num_procs);
-    // Fill send buffers, resize receive buffers
+    std::vector<particle_t> send_buffers[num_procs];    // indices = rank to send to
+    std::vector<particle_t> receive_buffers[num_procs]; // indices = rank to receive from
+
+    // Fill send buffers, resize receive buffers based on how many particles are being sent from each rank
     for (int rank_i = 0; rank_i < num_procs; ++rank_i) {
         for (int part_id: send_particle_ids[rank_i]) {
             send_buffers[rank_i].push_back(parts[part_id - 1]);
